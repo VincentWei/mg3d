@@ -1,0 +1,5 @@
+Samples for mG3d compenent of MiniGUI version 2.0.x 
+
+To run test program, please install library mg3d firstly.
+Secondly, run make command in directory test. 
+Finally, run qvfb and test program.

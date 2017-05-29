@@ -1,0 +1,729 @@
+<!doctype linuxdoc system>
+<article>
+<title>mG3d Programming Guide v1.0
+</title>
+<author>Feynman
+</author> 
+<date>Jan 14, 2006 
+</date> 
+<abstract>
+
+</abstract> 
+<toc>
+
+<sect>3D介绍
+<p>
+三维图形及动画场景的显示，就是把所建立的三维空间模型，经过计算机的复杂处理，最终在计算机二维屏幕上显示的过程。一般，设计三维图形软件要经过以下步骤：
+<enum>
+<item>图元建立三维模型。
+建立三维模型，就是在三维坐标系中画三维场景。利用画点（Point）、画线（Line）、画多边形(Polygon)等函数可以建立复杂的空间模型。在表示三维空间时，一般用齐次坐标（Homogeneous Coordinate）。在实际应用时一般把一系列顶点（Vertex ）组织起来以构成物体或图元。 
+
+<item>设置观看物体的窗口和观看点（视点）
+图形显示的区域称为显示窗口。定义一个窗口一般由以下步骤完成：设置窗口模式，设置窗口位置、大小，初始化窗口，窗口颜色设置。清理窗口是指把窗口清成某种颜色。要观看场景，也需要一个窗口，即视口。通俗地讲，视口变大，场景被放大；视口变小，场景被缩小。 
+
+<item>设定各物体的属性（如色彩、光照、纹理映射等）
+要使物体具有真实感，就要对物体进行光照处理。在计算机图形学中，物体的真实感应考虑两种因素：光源和物体材质。
+
+光源具有以下的属性:
+<itemize>
+<item>颜色: 平常的光源是白色的,但在特殊的环境下,仍然会有不同的光线,一般光线的颜色及强度是以RGB三元色来表示的.
+<item>光的种类：一般光可分为四种: 环境光(ambient light)、点光源(point source)、有向光(directional light 、聚光灯(spotlight).
+<item>环境光: 最简单的一种光源,没有位置,对环境中的每个物体的各个方向都具有相同的强度.
+<item>点光源: 点光源是射向四面八方的,它具有位置(position),但并不具有方向的属性(orientation).
+<item>有向光: 这种光有方向,但没有位置,最好的例子是太阳光.这种光是平行穿过三度空间,通常是用来模拟无限远的光源.
+<item>聚光灯:有方向有位置,并以圆锥形扩散。这种圆锥的形状是由阴影(umbra)及半影(penumbra)的角度来决定.
+<item>材质(texture)：每一面都可能会有其表面的材质纹路,如木制桌面或大理石地板等,通常是以2d静态图形来表示。
+</itemize>
+
+<item>图形变换（如几何变换、视窗变换和投影变换等）
+三维动画，就是把三维物体通过各种三维图形变换，把它投影到视口中。OpenGL 提供双缓存来制作动画。计算机在显示前台缓存中的画面同时，在后台缓存中绘制下一帧画面，需要显示后台缓存中的画面时，只要用函数把前后台缓存交换即可：图形变换常用的函数，有：平移、旋转、放缩。 
+
+<item>三维图形的二维化
+三维图形是通过二维视口（屏幕）来观看的，因此，对三维图形要进行投影变换和透视变换。 
+</enum>
+
+<sect>编程基础
+
+<sect1>数学函数
+<p>
+mG3d提供了一套用来控制向量操作的3D函数, 通过这些函数可以构造并且使用变换矩阵, 同时提供了从3 维世界到 2 维屏幕的透视投影变换功能。
+
+每个函数都有两个版本: 一个是定点算法, 一个是浮点算法.两个版本的语法基本相同,只是浮点函数和结构都有一个 'F' 后缀。
+
+变换函数是通过变换矩阵来实现的。 变换矩阵是一个4x4的数组, 其中包含的数据可与三维坐标点相乘从而产生一个不同的三维点。正确设置该矩阵可以产生诸如偏移,旋转,缩放等不同的操作结果。
+
+以下是一个4x4的矩阵:
+
+<verb>
+       ( a, b, c, d )
+       ( e, f, g, h )
+       ( i, j, k, l )
+       ( m, n, o, p )
+</verb>
+
+    该模板由几部分组成：左上方的 3x3 矩阵用来实现旋转和缩放；最右边一列的 d, h, 和l 用来实现偏移，如果矩阵只用来作仿射变换，则m, n 和 o 总是 0, p总是1，即默认矩阵的最下一行为 (0, 0, 0, 1)。
+
+    矩阵存储在下列结构中：
+<verb>
+    typedef struct _mg3dMatrix        - 定点矩阵结构
+    {
+        fixed v[3][3];                - 3x3的缩放和旋转组件
+        fixed t[3];                   - x/y/z 偏移矩阵
+    } mg3dMatrix;
+</verb>
+
+<verb>
+    typedef struct mg3dMatrixf - 浮点矩阵结构 
+    { 
+        float v[3][3];         - 3x3缩放和旋转组件 
+        float t[3];            - x/y/z 偏移矩阵 
+    } mg3dMatrixf;
+</verb>
+<p>
+下面从各函数接口介绍支持的各数学功能。
+<descrip>
+<tag>偏移矩阵</tag>
+<verb>
+void mg3dGetTranslationMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z);
+void mg3dGetTranslationMatrixF(mg3dMatrixf *m, float x, float y, float z);
+</verb>
+构造一偏移矩阵, 并将其存放在 m 中。当该矩阵和向量（px, py, pz）相乘后将得到一个 (px+x, py+y, pz+z) 向量，即将原向量向某一方向平移。
+
+<tag>缩放矩阵</tag>
+<verb>
+void mg3dGetScalingMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z);
+void mg3dGetScalingMatrixF(mg3dMatrixf *m, float x, float y, float z);
+</verb>
+构造一个缩放矩阵, 将其存放在 m 中。当该矩阵与向量 (px, py, pz) 相乘后得到一个（px*x, py*y, pz*z）向量。即将原向量进行缩放。
+
+<tag>绕X轴旋转矩阵</tag>
+<verb>
+void mg3dGetXRotMatrix(mg3dMatrix *m, fixed r);
+void mg3dGetXRotMatrixF(mg3dMatrixf *m, float r);
+</verb>
+构造一个绕 X 轴旋转的矩阵，将其存放在 m 中。当该矩阵与某向量相乘后, 将使该向量按指定的角度绕X轴旋转(旋转角度用二进制表示，最多旋转256度)。
+
+
+<tag>绕Y轴旋转矩阵</tag>
+<verb>
+void mg3dGetYRotMatrix(mg3dMatrix *m, fixed r);
+void mg3dGetYRotMatrixF(mg3dMatrixf *m, float r);
+</verb>
+构造一个绕Y轴旋转的矩阵，将其存放在m中。当该矩阵与某向量相乘后, 将使该向量按指定的角度绕 Y 轴旋转 (旋转角度用二进制表示,最多旋转256度)。
+
+
+<tag>绕Z轴旋转矩阵</tag>
+<verb>
+void mg3dGetZRotMatrix(mg3dMatrix *m, fixed r);
+void mg3dGetZRotMatrixF(mg3dMatrixf *m, float r);
+</verb>
+构造一个绕Z轴旋转的矩阵，将其存放在 m 中。当该矩阵与某向量相乘后, 将使该向量按指定的角度绕 Z 轴旋转 (旋转角度用二进制表示, 最多旋转256度)。
+
+<tag>绕任意轴旋转矩阵</tag>
+<verb>
+void mg3dGetRotMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z);
+void mg3dGetRotMatrixF(mg3dMatrixf *m, float x, float y, float z);
+</verb>
+构造一个绕任意坐标轴旋转的矩阵。当该矩阵与某向量相乘后，将使该向量按指定的角度绕任意坐标轴轴旋转 (旋转角度用二进制表示，最多旋转 256 度)。
+
+<tag>对齐矩阵</tag>
+<verb>
+void mg3dGetAlignMatrix(mg3dMatrix *m, fixed xfront, fixed yfront, fixed zfront, fixed xup, fixed yup, fixed zup);
+void mg3dGetAlignMatrixF(mg3dMatrixf *m, float xfront, float yfront, float zfront, float xup, float yup, float zup);
+</verb>
+旋转一个矩阵使其与指定的坐标向量对齐（它们不需被规格化或垂直，但 up 和 front 必须相等）。一个(1, 0, 0)的 front 向量和一个 (0, 1, 0) 的 up 向量将返回一个单位矩阵。
+
+<tag>绕任意向量任意角度的旋转矩阵</tag>
+<verb>
+void mg3dGetVectorRotMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z, fixed a);
+void mg3dGetVectorRotMatrixF(mg3dMatrixf *m, float x, float y, float z, float a);
+</verb>
+构造一个按指定角度 (二进制表示,最多旋转256度) 围绕x, y, z 向量旋转的变换矩阵。
+
+<tag>任意转换矩阵</tag>
+<verb>
+void mg3dGetTransformMatrix(mg3dMatrix *m, fixed scale, fixed xrot, fixed yrot, fixed zrot, fixed x, fixed y, fixed z);
+void mg3dGetTransformMatrixF(mg3dMatrixf *m, float scale, float xrot, float yrot, float zrot, float x, float y, float z);
+</verb>
+构造一个按指定角度 (二进制表示,最多旋转256度) 围绕任意三个轴旋转，将结果进行缩放 (将 scale 设置成1,如果不需缩放)，并且平移到 x,y,z 位置的矩阵。
+
+<tag>坐标系转换矩阵</tag>
+<verb>
+void mg3dGetCameraMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z, fixed xfront, fixed yfront, fixed zfront, fixed xup, fixed yup, fixed zup, fixed fov, fixed aspect);
+void mg3dGetCameraMatrixF(mg3dMatrixf *m, float x, float y, float z, float xfront, float yfront, float zfront, float xup, float yup, float zup, float fov, float aspect);
+</verb>
+
+构造一个从世界坐标系变换到标准化的观察坐标系的变换矩阵，并做好相应的投影变换。x,y,z参数指定观察点(或照像机)在世界坐标系中的位置，xfront, yfront, 和 zfront 参数为 'in front' 矢量，指定观察点的方向，(这些向量可以是任意长短；不需标准化)，xup, yup, 和 zup 是 'up' 方向向量。fov参数指明视角大小 (照相机的焦距宽度)，该参数是一个二进制值，最多到 256度。在一个一般的投影变换中，视角一般在32度到48度之间。最后，aspect 参数是用来将图象的 Y 方向尺寸相对其 X 方向尺寸进行缩放。(设置成 1，则不进行缩放)。
+
+
+<tag>偏移矩阵</tag>
+<verb>
+void mg3dQTranslateMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z);
+void mg3dQTranslateMatrixF(mg3dMatrixf *m, float x, float y, float z);
+</verb>
+对一个以生成的矩阵进行偏移变换的优化版本：该函数将自动在矩阵 m 中进入偏移量，所以没必要将两个矩阵相乘来构造偏移矩阵。
+
+<tag>缩放矩阵</tag>
+<verb>
+void mg3dQscaleMatrix(mg3dMatrix *m, fixed scale);
+void mg3dQscaleMatrixF(mg3dMatrixf *m, float scale);
+</verb>
+对一个以生成的矩阵进行缩放变换的优化版本。该函数将自动在矩阵 m 中进入缩放量，所以没必要将两个矩阵相乘来构造缩放矩阵。
+
+<tag>矩阵相乘</tag>
+<verb>
+void mg3dMatrixMul(const mg3dMatrix *m1, const mg3dMatrix *m2, mg3dMatrix *out);
+void mg3dMatrixMulF(const mg3dMatrixf *m1, const mg3dMatrixf *m2, mg3dMatrixf *out);
+</verb>
+将两个矩阵相乘，并将结果存放在 out 参数中 (该参数不能与其他两个参数所代表的矩阵相同)。结果矩阵和结合 m1 和 m2 的效果相同。即：设一点 p，(p * out) = ((p * m1) * m2)。可以以这个方法改变多次。
+
+<tag>向量长度</tag>
+<verb>
+fixed mg3dVectorLength(fixed x, fixed y, fixed z);
+float mg3dVectorLengthF(float x, float y, float z);
+</verb>
+计算向量 (x,y,z) 的长度。
+
+
+<tag>向量单位化</tag>
+<verb>
+void mg3dNormalVector(fixed *x, fixed *y, fixed *z);
+void mg3dNormalVectorF(float *x, float *y, float *z);
+</verb>
+将向量 (*x,*y,*z) 转换成单位矢量。
+
+
+<tag>点乘向量</tag>
+<verb>
+fixed mg3dDotProduct(fixed x1, fixed y1, fixed z1, fixed x2, fixed y2, fixed z2);
+float mg3dDotProductF(float x1, float y1, float z1, float x2, float y2, float z2); 
+</verb>
+点乘向量 (x1,y1,z1) 和 (x2,y2,z2)，并返回点乘结果。
+
+
+<tag>叉乘向量</tag>
+<verb>
+void mg3dCrossProduct(fixed x1, fixed y1, fixed z1, fixed x2, fixed y2, fixed z2, fixed *xout, fixed *yout, fixed *zout);
+void mg3dCrossProductF(float x1, float y1, float z1, float x2, float y2, float z2, float *xout, float *yout, float *zout);
+</verb>
+计算向量 (x1,y1,z1) 和 (x2,y2,z2)的叉乘，将结果存放在 (*xout, *yout, *zout)。叉乘产生一个垂直原来两个向量的向量，用该方法可以计算一个面的法向量。
+
+<tag>顶点法向的Z分量</tag>
+<verb>
+fixed mg3dPolygonZNormal(const mg3dVp *v1, const mg3dVp *v2, const mg3dVp *v3);
+float mg3dPolygonZNormalF(const mg3dVpf *v1, const mg3dVpf *v2, const mg3dVpf *v3);
+</verb>
+该函数找到指定顶点法向量的 Z 分量 (所指定的顶点必须是凸多边形的顶点)。该函数通常用来实现背面裁剪。一个封闭多边形的背面对观察者来说都是不可见的，所以它们不需要显示。通过背面裁剪可以大约可以将一个场景中的多边形数目减少一半。如果是负值，多边形可以安全的被裁减。如果是 0，多边形垂直于屏幕。
+
+<tag>向量与矩阵相乘</tag>
+<verb>
+void mg3dApplyMatrix(mg3dMatrix *m, fixed x, fixed y, fixed z, fixed *xout, fixed *yout, fixed *zout);
+void mg3dApplyMatrixF(const mg3dMatrixf *m, float x, float y, float z, float *xout, float *yout, float *zout);
+</verb>
+将点(x,y,z) 与转换矩阵 m 相乘，并把结果存放在 (*xout, *yout, *zout)中。
+
+
+<tag>设置视点</tag>
+<verb>
+void mg3dSetProjectionViewport(int x, int y, int w, int h);
+</verb>
+设置用来缩放 mg3dPerspProject() 函数输出的视口 (Viewport)。输入用户将要使用的屏幕尺寸，一般为0, 0, SCREEN_W, SCREEN_H。
+
+
+<tag>点的3维到2维转换</tag>
+<verb>
+void mg3dPerspProject(fixed x, fixed y, fixed z, fixed *xout, fixed *yout);
+void mg3dPerspProjectF (float x, float y, float z, float *xout, float *yout);
+</verb>
+将 3维坐标中的点 (x, y, z) 投影变换到2维的屏幕空间, 将结果存放在 (*xout, *yout)。该函数使用先前通过 mg3dSetProjectionViewport() 函数设置的缩放参数。 该函数从一个标准化的视锥投影。所谓标准化的视锥可以看成是放置在原点面朝 Z 轴正方向的一个照相机。 X 轴从左到右，Y 轴从上到下，Z 轴指向屏幕里面。该相机有 90 度的视角，即在 x=z, -x=z 平面上的点会被投影到屏幕的左边界或右边界，y=z, -y=z 屏幕上的点会被投影到屏幕的上边界或下边界。如果用户想使用不同的视角或照相机位置, 则需通过一个适当的视见矩阵(Viewing Matrix) 将所有对象进行变换。也就是说如果想产生一个照相机朝左旋转 10 度的效果, 则需将所有对象朝右旋转10度。
+</descrip>
+
+<sect1>多边形渲染
+<p>多边形的渲染是3D图形学中重要的一部分，它具有多种的渲染模式，几乎所有的3D程序都有多边形渲染。
+多边形的渲染函数有如下几个:
+<itemize>
+<item>mg3dPolygon
+<item>mg3dPolygonF
+<item>mg3dTriangle
+<item>mg3dTriangleF
+<item>mg3dQuad
+<item>mg3dQuadF
+</itemize>
+
+<descrip>
+<tag>void mg3dPolyon(HDC mem_dc, int type, HDC texture, int vc, mg3dVp *vtx[])</tag>
+   向指定HDC画3D多边形, 使用指定的渲染模式。这个函数不支持 凹多边形或自交叉多边形。这个函数支持贴图，贴图的宽度和高度 必须是 2 的整数次方, 但可以不同, 比如: 可以是 64x16 的贴图, 但不能是 17x3 的.
+<itemize>
+<item>mem_dc 是要画3D多边形的HDC，一般由CreateMemDC创建。
+<item>type 是指定mg3dPolygon的渲染类型，它是如下值中的一个：
+<enum>
+<item>MG3D_POLYTYPE_FLAT：简单的平展作过阴暗处理的多边形, 颜色取自第一个顶点的颜色.
+<item>MG3D_POLYTYPE_GCOL：一个简单颜色过度的作过阴暗处理的多边形。每个顶点的颜色都取自mg3dVp结构的c值，并且添充多边形。它的速度很快, 但是在8位色时设置的调色板必须包含有平滑过渡的色彩，否则在渲染时可能颜色差别很大。在15, 16, 24, 32位色下显示格式则有MiniGUI得到。
+<item>MG3D_POLYTYPE_GRGB：一个色彩过渡的作过阴影处理的多边形，以rgb染色而不是单色调，每个顶点的颜色都取自顶点结构mg3dVp的c值，这个 c 值是24位的rgb形式(0xff0000 是红色, 0x00ff00 是绿色, 0x0000ff 是蓝色).
+<item>MG3D_POLYTYPE_ATEX：贴图多边形渲染模式。贴图存储在texture所指的的HDC中，贴图坐标是顶点结构mg3dVp的u，v指定的。它用简单的2D线形方式拉伸贴图添入多边形，这很快但是没有数学修正。当多边形较小或平面正对照相机时效果看起来还不错。
+<item>MG3D_POLYTYPE_PTEX：透视修正贴图多边形渲染模式。它使用顶点结构mg3dVp中的z值用在u，v坐标中, 贴图可在任何角度被正确的显示。这个渲染模式比MG3D_POLYTYPE_ATEX慢得多。
+<item>MG3D_POLYTYPE_ATEX_MASK和MG3D_POLYTYPE_PTEX_MASK：它们与MG3D_POLYTYPE_ATEX、MG3D_POLYTYPE_PTEX较相似，只不过它们会形成部分完全透明的贴图渲染效果。
+<item>MG3D_POLYTYPE_ATEX_LIT和MG3D_POLYTYPE_PTEX_LIT：它们与MG3D_POLYTYPE_ATEX、MG3D_POLYTYPE_PTEX较相似。它们在贴图上能形成一定的光照效果。在8位色是要使用全局变量color_map，并且color_map由mg3dCreateLightTable (&amp;light_table, pal, r, g, b, NULL)所得到的light_table赋值。在15,16,24,32位色时取自顶点结构mg3dVp中的c值，但需要先使用mg3dSettransBlender()函数。
+<item>MG3D_POLYTYPE_ATEX_MASK_LIT与MG3D_POLYTYPE_PTEX_MASK_LIT：它们与MG3D_POLYTYPE_ATEX_LIT、MG3D_POLYTYPE_PTEX_LIT类似，允许贴图具有一部分完全透明的光照渲染效果。 
+<item>MG3D_POLYTYPE_ATEX_TRANS与MG3D_POLYTYPE_PTEX_TRANS：它们与MG3D_POLYTYPE_ATEX、MG3D_POLYTYPE_PTEX类似，它们会形成贴图的透明效果。 
+<item>MG3D_POLYTYPE_ATEX_MASK_TRANS与MG3D_POLYTYPE_PTEX_MASK_TRANS：它们与MG3D_POLYTYPE_ATEX、MG3D_POLYTYPE_PTEX类似，允许贴图具有一部分完全透明，其余部分具有透明的渲染效果。
+</enum>
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>vc 多边形顶点的个数。
+<item>*vtx&lsqb] 顶点的结构指针数组，顶点元素个数由vc所确定。
+</itemize>
+<tag>void mg3dPolygonF(HDC mem_dc, int type, HDC texture, int vc, mg3dVpf *vtx[])</tag>它与mg3dPolygon()函数类似，向指定HDC画3D多边形, 使用指定的渲染模式。这个函数不支持凹多边形或自交叉多边形。这个函数支持贴图，贴图的宽度和高度必须是2的整数次方, 但可以不同, 比如: 可以是 64x16 的贴图, 但不能是 17x3 的。只不过它使用的vtx变量是mg3dVpf类型的,其余参数与mg3dPolygon一致。
+<itemize>
+<item>mem_dc 是要画3D多边形的HDC，一般由CreateMemDC创建。
+<item>type mg3dPolygon的type一样。
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>vc 多边形顶点的个数。
+<item>*vtx&lsqb] 顶点的结构指针数组，顶点元素个数由vc所确定。
+</itemize>
+<tag>void mg3dQuad(HDC mem_dc, int type, HDC texture, mg3dVp *v1, mg3dVp *v2, mg3dVp *v3, mg3dVp *v4)</tag>向指定的HDC画3D四边形支持贴图，贴图要求与mg3dPolygon一样,其顶点是mg3dVp类型。
+<itemize>
+<item>mem_dc  是要画3D四边形的HDC，一般由CreateMemDC创建。
+<item>type 与mg3dPolygon的type一样。
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>*v1 四边形的第一个顶点。
+<item>*v2 四边形的第二个顶点。
+<item>*v3 四边形的第三个顶点。
+<item>*v4 四边形的第四个顶点。
+</itemize>
+<tag>void mg3dQuadF(HDC mem_dc, int type, HDC texture, mg3dVpf *v1, mg3dVpf *v2, mg3dVpf *v3, mg3dVpf *v4)</tag>向指定的HDC画3D四边形支持贴图，贴图要求与mg3dPolygon一样，其顶点是mg3dVpf类型。
+<itemize>
+<item>mem_dc 是要画3D四边形的HDC，一般由CreateMemDC创建。
+<item>type 与mg3dPolygon的type一样。
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>*v1 四边形的第一个顶点。
+<item>*v2 四边形的第二个顶点。
+<item>*v3 四边形的第三个顶点。
+<item>*v4 四边形的第四个顶点。
+</itemize>
+<tag>void mg3dTriangle(HDC mem_dc, int type, HDC texture, mg3dVp *v1, mg3dVp *v2, mg3dVp *v3)</tag>向指定的HDC画3D三角形支持贴图，贴图要求与mg3dPolygon一样，其顶点是mg3dVp类型。
+<itemize>
+<item>mem_dc  是要画3D三角形的HDC，一般由CreateMemDC创建。
+<item>type 与mg3dPolygon的type一样。
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>*v1 三角形的第一个顶点。
+<item>*v2 三角形的第二个顶点。
+<item>*v3 三角形的第三个顶点。
+</itemize>
+<tag>void mg3dTriangleF(HDC mem_dc, int type, HDC texture, mg3dVpf *v1, mg3dVpf *v2, mg3dVpf *v3)</tag>向指定的HDC画3D三角形支持贴图，贴图要求与mg3dPolygon一样，其顶点是mg3dVpf类型。
+<itemize>
+<item>mem_dc  是要画3D三角形的HDC，一般由CreateMemDC创建。
+<item>type 与mg3dPolygon的type一样。
+<item>texture 在贴图时使用，是贴图所在的HDC，不使用贴图时设为0。
+<item>*v1 三角形的第一个顶点。
+<item>*v2 三角形的第二个顶点。
+<item>*v3 三角形的第三个顶点。
+</itemize>
+
+</descrip>
+
+<sect1>ZBuffer
+<p>ZBuffer中存储了绘制在视口上的每个像素的位置深度。当渲染一个3D物体时，每个像素的位置深度都同存储在Z-buffer内的值进行比较：如果该像素较近，就绘制，否则就跳过。Z-buffer并不需要对多边形进行排序。然而，应该先执行后端面的挑选，因为它可以减少部分多边形同Z-buffer的比较。Z-buffer可以直接用于穿透形状的渲染。Z-buffer被设计成MG3D_POLYTYPE_*渲染模式的一种延伸。只要或MG3D_POLYTYPE_ZBUF值，mg3dPolygon()、mg3dPolygonF()、mg3dQuad()等函数都将被渲染为Z-buffer多边形。
+<p>Example:
+<p>mg3dPolygon(mem_dc, MG3D_POLYTYPE_ATEX | MG3D_POLYTYPE_ZBUF, texture, vc, vtx);
+<p>当然，无论是何种渲染模式，z坐标值必须是有效的。一个Z-buffer渲染过程看起来象一个双缓冲渲染模式。应该遵循以下四步骤：在程序开始时，创建一个Z-buffer，并且通过调用mg3dSetZbuffer()激活创建的Z-buffer。然后，对于每一桢清空Z-buffer，并使用MG3D_POLYTYPE_* | MG3D_POLYTYPE_ZBUF渲染模式绘制多边形，最后在退出程序时，销毁Z-buffer。
+<p>Z-buffer渲染需要注意：通过设置blender规则来实现*LIT*渲染模式;所有的Z-buffer渲染模式都比一般的要慢。
+<itemize>
+<item>创建Z-Buffer
+<p>MG3DZBUFFER mg3dCreateZbuffer(HDC mem_dc);
+<p>根据需要绘制的mem_dc尺寸创建Z-buffer。可以同时定义几个Z-buffer，但是每次只能用其中的一个，因此你必须调用mg3dSetZbuffer()来激活这个Z-buffer。记住销毁Z-buffer，避免内存泄漏。
+<item>设置Z-buffer
+<p>void mg3dSetZbuffer(MG3DZBUFFER zbuf);
+<p>激活给定的Z-buffer。在调用该函数之前应该调用mg3dCreateZbuffer创建该Z-buffer。
+<item>清空Z-buffer
+<p>void mg3dClearZbuffer(MG3DZBUFFER zbuffer, float z);
+<p>在初始化Z-buffer时调用该函数，把z值写入给定的Z-buffer中（0意味着无穷远）。实际上，是把当前像素深度同1/z做比较，如果希望剪切掉比10远的多边形，就必须调用mg3dClearZbuffer(zbuffer, 0.1)。
+<item>销毁Z-buffer
+<p>void mg3dDestroyZbuffer(MG3DZBUFFER zbuf);
+<p>当完成Z-buffer渲染后，调用该函数销毁Z-buffer。调用该函数避免程序当中的内存泄漏。
+</itemize>
+
+<sect1>场景
+<p>
+场景是一种优化机制，当画面中同时存在多个多边形的时候，可以应用场接景口来加快多边形的渲染速度。
+<itemize>
+<item>场景的创建与销毁
+<p>
+使用场景接口之前应该调用mg3dCreateScene函数来创建场景。
+
+int mg3dCreateScene(int nedge, int npoly);
+
+nedge表示该场景中最多可能同时出现多少条多边形的边，npoly表示场景中最多可能同时出现多少个多边形。
+
+在场景不再被使用时候，应该及时调用mg3dDestroyScene函数来释放场景占用的资源。
+
+void mg3dDestroyScene(void);
+
+<item>场景的初始化
+<p>
+在建立了场景之后，便可以生成多边形并渲染。需要注意的是每渲染一幅场景画面之前都应调用函数mg3dClearScene来初始化场景。
+
+void mg3dClearScene(HDC mem_dc);
+
+mem_dc表示渲染场景时需要用到的Memory DC的句柄。
+<item>将指定多边形加入渲染列表
+<p>
+在初始化场景之后，便可以按照设计生成多边形。但是，生成的多边形不是立刻便可以被渲染，而是应该首先要把指定被渲染的多边形加入渲染列表中。这个链表是由mG3d组件内部维护的。只有渲染列表中被记录的多边形，在真正渲染的时候才可以被渲染出来。有两个函数可以用来把一个指定的多边形加入多边形渲染列表，mg3dScenePolygon和mg3dScenePolygonF分别对应定点数和浮点数的版本。
+
+int mg3dScenePolygon(int type, HDC texture, int vx, mg3dVp *vtx[]);
+
+int mg3dScenePolygonF(int type, HDC texture, int vx, mg3dVpf *vtx[]);
+
+type表示渲染类型，texture表示保存多边形纹理的Memory DC的句柄，若没有用到纹理，则给0值，vx表示多边形的顶点数目，vtx指向这个多边行顶点的座标。
+<item>场景渲染
+<p>
+在将所有需要渲染的多边形都加入了渲染多边形链表之后，可以调用mg3dRenderScene来渲染这一幅场景画面。
+
+void mg3dRenderScene(void);
+<item>三维裁剪
+<p>
+对场景中的多边形进行渲染的时候，需要首先对多边形进行三维空间裁剪，有两个函数可以完成这个工作mg3dClip和mg3dClipF，分别对应定点数和浮点数的版本。
+
+int mg3dClip(HDC mem_dc, int type, fixed min_z, fixed max_z, int vc, const mg3dVp *vtx[], mg3dVp *vout[], mg3dVp *vtmp[], int out[]);
+
+int mg3dClipF(HDC mem_dc, int type, float min_z, float max_z, int vc, const mg3dVpf *vtx[], mg3dVpf *vout[], mg3dVpf *vtmp[], int out[]);
+
+mem_dc表示渲染场景时需要用到的Memory DC的句柄，type表示渲染类型，min_z和max_z定义了裁剪面，vc表示多边形的定点的数量，vtx保存输入的定点，vout保存输出的定点，vtmp和out是为函数提供的临时缓冲区。函数的返回值即是裁剪后多边形的定点数。
+</itemize>
+
+
+<sect>编程实例
+
+<sect1>多边形渲染
+<p>
+<verb>
+void draw_quad(HDC b, VTX *v1, VTX *v2, VTX *v3, VTX *v4, int mode)
+{
+    int col;
+    
+    /*多边形顶点的个数*/
+    int vc;
+
+    /*mg3dVp结构指针数组，数组元素个数由vc指定，vc、vtx将在mg3dPolygon中使用*/
+    mg3dVp *vtx[4];
+                                                                                                       
+    /* 四个顶点的多边形 */
+    mg3dVp vtx1 = { 0, 0, 0, 0,      0,      0 };
+    mg3dVp vtx2 = { 0, 0, 0, 32<<16, 0,      0 };
+    mg3dVp vtx3 = { 0, 0, 0, 32<<16, 32<<16, 0 };
+    mg3dVp vtx4 = { 0, 0, 0, 0,      32<<16, 0 };
+                                                                                                       
+    vtx1.x = v1->x;   vtx1.y = v1->y;   vtx1.z = v1->z;
+    vtx2.x = v2->x;   vtx2.y = v2->y;   vtx2.z = v2->z;
+    vtx3.x = v3->x;   vtx3.y = v3->y;   vtx3.z = v3->z;
+    vtx4.x = v4->x;   vtx4.y = v4->y;   vtx4.z = v4->z;
+    
+    if ((mode != MG3D_POLYTYPE_ATEX_MASK) && (mode != MG3D_POLYTYPE_PTEX_MASK) &&
+            (mode != MG3D_POLYTYPE_ATEX_MASK_LIT) && (mode != MG3D_POLYTYPE_PTEX_MASK_LIT) &&
+            (mg3dPolygonZNormal(&amp vtx1, &amp vtx2, &amp vtx3) < 0))
+        return;
+                                                                                                      
+    /*设置顶点的颜色，不同的渲染模式顶点的颜色是不同的*/
+    switch (mode) {
+                                                                                                       
+        case MG3D_POLYTYPE_FLAT:
+            col = MID(128, 255 - fixtoi(v1->z+v2->z) / 16, 255);
+            vtx1.c = vtx2.c = vtx3.c = vtx4.c = RGB2Pixel(b, col, col, col);
+            break;
+                                                                                                       
+        case MG3D_POLYTYPE_GCOL:
+            vtx1.c = RGB2Pixel(b,0xD0, 0xD0, 0xD0);
+            vtx2.c = RGB2Pixel(b, 0x80, 0x80, 0x80);
+            vtx3.c = RGB2Pixel(b, 0xB0, 0xB0, 0xB0);
+            vtx4.c = RGB2Pixel(b, 0xFF, 0xFF, 0xFF);
+            break;
+
+        /*使用MG3D_POLYTYPE_GRGB渲染模式时顶点的颜色值c要赋24位色彩的格式*/
+        case MG3D_POLYTYPE_GRGB:
+            vtx1.c = 0x000000;
+            vtx2.c = 0x7F0000;
+            vtx3.c = 0xFF0000;
+            vtx4.c = 0x7F0000;
+            break;
+
+        case MG3D_POLYTYPE_ATEX_LIT:
+        case MG3D_POLYTYPE_PTEX_LIT:
+        case MG3D_POLYTYPE_ATEX_MASK_LIT:
+        case MG3D_POLYTYPE_PTEX_MASK_LIT:
+            vtx1.c = MID(0, 255 - fixtoi(v1->z) / 4, 255);
+            vtx2.c = MID(0, 255 - fixtoi(v2->z) / 4, 255);
+            vtx3.c = MID(0, 255 - fixtoi(v3->z) / 4, 255);
+            vtx4.c = MID(0, 255 - fixtoi(v4->z) / 4, 255);
+            break;
+    }
+                                                                                                       
+    /*顶点数为4，即要画一个四边形*/
+     vc = 4;
+
+    vtx[0] = &amp;vtx1;
+    vtx[1] = &amp;vtx2;
+    vtx[2] = &amp;vtx3;
+    vtx[3] = &amp;vtx4;
+
+    /* 画多边形*/                                                                           
+    mg3dPolygon(b, mode, texture, vc, vtx);
+
+}
+</verb>
+<sect1>ZBuffer
+<p>该程序演示了如何使用Z-buffer进行多边形渲染。
+<verb>
+/* 去除后端面，绘制六面体*/
+void draw_cube(HDC buffer, mg3dVpf x1[], mg3dVpf x2[])
+{
+    int i;
+    
+    /*基于ZBUF渲染模式分别绘制两个六面体*/
+    for (i=0; i<6; i++) {
+        mg3dVpf vtx1, vtx2, vtx3, vtx4;
+        
+        /*四边形顶点赋值*/
+        vtx1 = x1[faces[i].v1];
+        vtx2 = x1[faces[i].v2];
+        vtx3 = x1[faces[i].v3];
+        vtx4 = x1[faces[i].v4];
+        
+        /*判断是否为不可见端面，可见则绘制六面体其中一面*/
+        if (mg3dPolygonZNormalF(&amp;vtx1, &amp;vtx2, &amp;vtx3) > 0)
+            mg3dQuadF(buffer, MG3D_POLYTYPE_GCOL | MG3D_POLYTYPE_ZBUF, 0, &amp;vtx1, &amp;vtx2, &amp;vtx3, &amp;vtx4);
+        
+        /*四边形顶点赋值*/
+        vtx1 = x2[faces[i].v1];
+        vtx2 = x2[faces[i].v2];
+        vtx3 = x2[faces[i].v3];
+        vtx4 = x2[faces[i].v4];
+        
+        /*判断是否为不可见端面，可见则绘制另一六面体其中一面*/
+        if (mg3dPolygonZNormalF(&amp;vtx1, &amp;vtx2, &amp;vtx3) > 0)
+            mg3dQuadF(buffer, MG3D_POLYTYPE_GCOL| MG3D_POLYTYPE_ZBUF, 0, &amp;vtx1, &amp;vtx2, &amp;vtx3, &amp;vtx4);
+    }
+}
+
+static int ZBufferWndProc(HWND hWnd, int message, WPARAM wParam, LPARAM lParam)
+{
+    switch ( message ) {
+        case MSG_CREATE:
+            
+            /* 创建 Memory DC */
+            buffer = CreateMemDC (SCREEN_W, SCREEN_H, 8,
+                    MEMDC_FLAG_SWSURFACE, 0x00, 0x00, 0x00, 0x00);
+            
+            /* 创建 Z-Buffer*/
+            zbuf = mg3dCreateZbuffer(buffer);
+            
+            /* 设置 Z-Buffer*/
+            mg3dSetZbuffer(zbuf);
+            
+            ……
+            
+            SetTimer(hWnd, 100, 10);
+            break;
+
+        case MSG_TIMER:
+            SetBrushColor(buffer, RGB2Pixel (buffer, pal[0].r, pal[0].g, pal[0].b));
+            FillBox(buffer, 0, 0, SCREEN_W, SCREEN_H);
+            
+            /* 清空 Z-Buffer*/
+            mg3dClearZbuffer(zbuf, 0.);
+            
+            /* 更新六面体位置 */
+            anim_cube(&amp;matrix1, &amp;matrix2, x1, x2);
+            
+            /* 绘制六面体 */
+            draw_cube(buffer, x1, x2);
+            ……
+            hdc=GetClientDC(hWnd);
+            BitBlt(buffer, 0, 0, SCREEN_W, SCREEN_H, hdc, 0, 0, 0);
+            ReleaseDC(hdc);
+            break;
+        case MSG_CLOSE:
+            /* 销毁Z-buffer */
+            mg3dDestroyZbuffer(zbuf);
+		    DeleteMemDC (buffer);
+		    DestroyMainWindow (hWnd);
+		    PostQuitMessage (hWnd);
+		    break;
+    }
+		
+	return DefaultMainWinProc(hWnd, message, wParam, lParam);
+}
+</verb>
+
+<sect1>场景
+<p>
+<itemize>
+<item>下面将展示一个64个正方体物体在同一个场景中运动的例子，本例程使用浮点数据描述，但是可以替换成定点数运算。在本例中，三维空间中共有64个规则排列的正方体，他们依照统一的轨迹在空间内做旋转和位移运动。在运动的过程中，立方体之间会因为Z值不同而产生遮挡，场景接口将自动为我们完成隐面消除的工作。
+<item>mG3d作为MiniGUI的组件，应该依照MiniGUI消息驱动的方式进行编程，场景API的使用也不例外。下面的例子中，我们将在窗口的消息处理函数中调用mG3d的场景API完成对多边行生成及渲染工作。
+<verb>
+#define MAX_CUBES 4
+static HDC hdc, hSceneDC;
+
+int mg3dSceneTestProc(HWND hWnd, int msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case MSG_CREATE:
+    {
+        /* ...... */    
+
+        /* 得到窗口的DC句柄 */        
+        hdc = GetClientDC(hWnd);
+
+        /* 为场景建立Memory DC。
+           mG3d组件的多边形的渲染等工作都是在Memory DC中完成的，
+           当在Memory DC中完成了一帧的渲染后，利用BitBlt函数        
+           将Memory DC中的画面拷贝到窗口的DC中加以显示。
+           下面建立的是一个16位色的Memory DC且尺寸与窗口的大小一致 
+        */
+        hSceneDC = CreateMemDC(SCREEN_W, SCREEN_H, 16,
+                               MEMDC_FLAG_SWSURFACE, 0, 0, 0, 0);
+        
+        /* 建立场景，因为每个立方体由6个面组成，每个面又由4个顶点组成，
+           一共有64个正方体，所以场景中最多顶点数目为（第一个参数）：
+           24 * MAX_CUBES * MAX_CUBES * MAX_CUBES = 6*4*4*4*4;
+           因为每个多边行有六个面，所以场景中最多多边形数目为：
+           6 * MAX_CUBES * MAX_CUBES * MAX_CUBES  = 6*4*4*4 
+        */
+        mg3dCreateScene(24 * MAX_CUBES * MAX_CUBES * MAX_CUBES,
+                        6 * MAX_CUBES * MAX_CUBES * MAX_CUBES);
+
+        /* 设置视口 */                                       
+        mg3dSetProjectionViewport(0, 0, SCREEN_W, SCREEN_H);
+        
+        /* ...... */
+        break;
+    }
+}
+</verb>
+<item>场景建立了之后，我们可以在消息处理函数中响应某个消息来启动多边形的生成和渲染的流程。本例中，我们响应了键盘按下的消息（光标的左键按下）。
+<verb>
+case MSG_KEYDOWN:
+{
+    if (wParam != SCANCODE_CURSORBLOCKLEFT) {
+        break;
+    }
+        
+    /* ...... */        
+
+    /* 在一个循环中完成多边形的生成和渲染*/
+    for ( ; ; ) {
+
+        /* 每渲染一帧之前，应当清空Memory DC
+           中的内容 */
+        SetBrushColor(hSceneDC, PIXEL_black);
+        FillBox(hSceneDC, 0, 0, WNDWIDTH, WNDHEIGHT);
+
+        /* 每渲染一帧之前需要初始化场景一次 */  
+        mg3dClearScene(hSceneDC);
+
+        /* 根据旋转角度的增量生成新的旋转变换矩阵 */
+        mg3dGetRotMatrixF(&amp;matrix2, rx, ry, 0);
+        mg3dGetRotMatrixF(&amp;matrix3, 0, rot, 0);
+
+        /* 64个正方体在空间中的排列方式为：X，Y，Z轴方向上各有4个正方体，共计64个。
+           下面的循环针对每一个正方体来计算它的平移运动的偏移量，生成每个正方体最终的运顶变换矩阵。
+           在这个例子中，所有正方体共享相同的旋转矩阵，但是每个正方体有自己独特的平移矩阵。
+           每次循环都是针对一个正方体，对于同一个正方体上的顶点，它们的变换矩阵是一样的。
+           draw_cube函数的主要作用是将一个正方体的六个面加入多边行渲染列表，此时并不真正的渲染
+           多边形。
+         */
+         for (k = MAX_CUBES - 1; k >= 0; k--) {
+             for (j = 0; j < MAX_CUBES; j++) { 
+                 for (i = 0; i < MAX_CUBES; i++) {
+                      
+                     /* 得到每个正方体的平移矩阵 */                   
+                     mg3dGetTranslationMatrixF(&amp;matrix1, j*40-MAX_CUBES*20+20,
+                                                  i*40-MAX_CUBES*20+20, tz+k*40);
+                         
+                     /* 将平移矩阵和上面两个旋转矩阵做乘法，
+                        得到最终的变换矩阵，注意矩阵乘法的相乘顺序 */
+                     mg3dMatrixMulF(&amp;matrix2, &amp;matrix1, &amp;matrix);
+                     mg3dMatrixMulF(&amp;matrix, &amp;matrix3, &amp;matrix);
+                                          
+                     draw_cube(&amp;matrix, 6);
+                 }
+             }
+        }
+
+        /* 渲染一幅场景，此时场景中所有的多边形将被真正的“画”在Memory DC上 */
+        mg3dRenderScene();
+           
+        /* 把场景Memory DC中的内容拷贝到窗口DC中，窗口将显示这一帧 */
+        BitBlt(hSceneDC, 0, 0, WNDWIDTH, WNDHEIGHT, hdc, 0, 0, 0);
+
+        /* 重新计算旋转角度，位移等增量 */
+        tz -= 2;
+        if (!tz) tz = 40;
+        rx += 4;
+        ry += 4;
+        rot += inc;
+        if ((rot >= 25) || (rot <= -25)) inc = -inc;
+        
+        /* ...... */
+    }
+    break;
+}
+</verb>
+<item>先来详细解释一下draw_cube函数中所做的工作。draw_cube针对每一个正方体做处理，而不是针对多边形，它的主要任务是完成多边形的三维空间裁减，投影并加入多边形渲染列表。函数的第一个参数表示需要应用在正方体6个顶点上的变换矩阵，第二个参数表明一个正方体是由多少个多边形组成的，默认是6个。
+<verb>
+void draw_cube(mg3dMatrixf *matrix, int num_poly)
+{
+    int i, j, nv;
+    /* out数组是提供给mg3dClipF函数运行时需要的临时缓冲区 */
+    int out[12];
+   
+    /* 正方体一共有6个面，循环每次完成一个面的运算 */
+    for (i = 0; i < num_poly; i++) {
+        
+        /* 每个面都有4个顶点，对每个顶点应用刚才求得的变换矩阵 */
+        for (j = 0; j < 4; j++) {
+            v[j] = vertex[cube[i].v[j]];
+            mg3dApplyMatrixF(matrix, v[j].x, v[j].y, v[j].z,
+                             &amp;v[j].x, &amp;v[j].y, &amp;v[j].z);
+        }
+      
+        /* 对正方体的每个面做3d裁剪，MG3D_POLYTYPE_GCOL是渲染类型，
+           0.1, 1000.表明裁剪的边界；4表明被裁剪的多边形初始有4个顶点，
+           pv是保存多边形顶点的数组的指针，pvout指向是裁剪后的多边形顶点数组
+           pvtmp，out都是为mg3dClipF提供的临时缓冲区。
+           
+           值得注意的是，由于多边形裁剪后的顶点数可能大于其原有顶点数，所以
+           提供的保存运算结果的数组和临时缓冲区应该尽量的大。
+
+           mg3dClipF的返回值就是裁剪后多边形的顶点数。   
+         */
+        nv = mg3dClipF(hSceneDC, MG3D_POLYTYPE_GCOL, 
+                       0.1, 1000., 4, 
+                       (const mg3dVpf**)pv, pvout,
+                       pvtmp, out);
+        
+        if (nv) {
+        
+            /* 把裁剪后的各个顶点投影到二维屏幕上 */
+            for (j = 0; j < nv; j++) {
+                mg3dPerspProjectF(vout[j].x, vout[j].y, vout[j].z, 
+                                  &amp;(vout[j].x), &amp;(vout[j].y));
+            }
+
+            /* 把这个多边行加入到待渲染多边形链表中 */
+            if (mg3dPolygonZNormalF(&amp;vout[0], &amp;vout[1], &amp;vout[2]) > 0) { 
+                mg3dScenePolygonF(MG3D_POLYTYPE_GCOL, hTextureDC, nv, pvout);
+            }
+        }
+    }
+}
+</verb>
+<item>当场景不需要被使用的时候，应当及时的释放所占用的资源。
+<verb>
+/* ...... */
+/* 释放DC，销毁场景，释放资源 */     
+ReleaseDC(hdc);
+ReleaseDC(hSceneDC);
+mg3dDestroyScene();
+</verb>
+</itemize>
+</article>

@@ -1,0 +1,202 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.52)
+
+AC_INIT([src/poly3d.c])
+
+MG3d_MAJOR_VERSION=1
+MG3d_MINOR_VERSION=0
+MG3d_MICRO_VERSION=3
+MG3d_INTERFACE_AGE=0
+MG3d_BINARY_AGE=0
+
+MG3d_VERSION=$MG3d_MAJOR_VERSION.$MG3d_MINOR_VERSION.$MG3d_MICRO_VERSION
+
+AC_SUBST(MG3d_MAJOR_VERSION)
+AC_SUBST(MG3d_MINOR_VERSION)
+AC_SUBST(MG3d_MICRO_VERSION)
+AC_SUBST(MG3d_INTERFACE_AGE)
+AC_SUBST(MG3d_BINARY_AGE)
+AC_SUBST(MG3d_VERSION)
+
+# libtool versioning
+LT_RELEASE=$MG3d_MAJOR_VERSION.$MG3d_MINOR_VERSION
+LT_CURRENT=`expr $MG3d_MICRO_VERSION - $MG3d_INTERFACE_AGE`
+LT_REVISION=$MG3d_INTERFACE_AGE
+LT_AGE=`expr $MG3d_BINARY_AGE - $MG3d_INTERFACE_AGE`
+
+AC_SUBST(LT_RELEASE)
+AC_SUBST(LT_CURRENT)
+AC_SUBST(LT_REVISION)
+AC_SUBST(LT_AGE)
+
+dnl ========================================================================
+dnl Checks for system type.
+AC_CANONICAL_SYSTEM
+
+dnl ========================================================================
+dnl Check for tools
+AC_PROG_CC
+AC_PROG_LD
+AC_PROG_RANLIB
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+dnl ========================================================================
+dnl Put the name and version of the package here
+AM_INIT_AUTOMAKE(libmg3d,$MG3d_VERSION,-)
+
+AC_DEFINE_UNQUOTED(MG3D_MAJOR_VERSION, $MG3d_MAJOR_VERSION, [MG3d major version])
+AC_DEFINE_UNQUOTED(MG3D_MINOR_VERSION, $MG3d_MINOR_VERSION, [MG3d minor version])
+AC_DEFINE_UNQUOTED(MG3D_MICRO_VERSION, $MG3d_MICRO_VERSION, [MG3d micro version])
+AC_DEFINE_UNQUOTED(MG3D_INTERFACE_AGE, $MG3d_INTERFACE_AGE, [MG3d interface age])
+AC_DEFINE_UNQUOTED(MG3D_BINARY_AGE, $MG3d_BINARY_AGE, [MG3d binary age])
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([float.h limits.h string.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+# Checks for library functions.
+AC_CHECK_FUNCS([memset])
+
+dnl ========================================================================
+dnl User selectable options
+
+use_mg_color8="no"
+use_mg_color16="yes"
+use_mg_color24="no"
+use_mg_color32="no"
+use_mg3d_c="yes"
+
+AC_ARG_ENABLE(mg3d_c,
+[  --enable-mg3dc use mg3d c implementation <default=yes>],
+use_mg3d_c=$enableval)
+
+if test "x$use_mg3d_c" = "xyes"; then
+  AC_DEFINE(USE_MG3D_C, 1, 
+            [Define if use own color depth]) 
+      MG3D_SUBDIRS="$MG3D_SUBDIRS c"
+      MG3D_LADD="$MG3D_LADD c/libmg3dc.la"
+fi
+
+AC_ARG_ENABLE(color16,
+[  --enable-color16      use color depth 16 <default=yes>],
+use_mg_color16=$enableval)
+
+if test "x$use_mg_color16" = "xyes"; then
+  AC_DEFINE(MINIGUI_COLOR16, 1, 
+            [Define if use own color depth]) 
+    use_mg_color8="no"
+    use_mg_color24="no"
+    use_mg_color32="no"
+fi
+
+dnl 
+
+AC_ARG_ENABLE(color8,
+[  --enable-color8    use color depth 8 <default=no>],
+use_mg_color8=$enableval)
+
+if test "x$use_mg_color8" = "xyes"; then
+  AC_DEFINE(MINIGUI_COLOR8, 1, 
+            [Define if use own color depth]) 
+  fi
+
+dnl
+
+AC_ARG_ENABLE(color24,
+[  --enable-color24      use color depth 24 <default=no>],
+use_mg_color24=$enableval)
+
+if test "x$use_mg_color24" = "xyes"; then
+  AC_DEFINE(MINIGUI_COLOR24, 1, 
+                [Define if use own color depth]) 
+    use_mg_color8="no"
+fi
+
+dnl 
+
+AC_ARG_ENABLE(color32,
+[  --enable-color32      use color depth 32 <default=no>],
+use_mg_color32=$enableval)
+
+if test "x$use_mg_color32" = "xyes"; then
+  AC_DEFINE(MINIGUI_COLOR32, 1, 
+                    [Define if use own color depth]) 
+    use_mg_color8="no"
+    use_mg_color24="no"
+fi
+
+have_libminigui="no"
+AC_CHECK_HEADERS(minigui/common.h, have_libminigui=yes, foo=bar)
+
+dnl ========================================================================
+dnl check for run-time mode of MiniGUI
+dnl ========================================================================
+threads_version="no"
+AC_CHECK_DECLS(_MGRM_THREADS, threads_version="yes", foo=bar, [#include <minigui/common.h>])
+
+procs_version="no"
+AC_CHECK_DECLS(_MGRM_PROCESSES, procs_version="yes", foo=bar, [#include <minigui/common.h>])
+
+standalone_version="no"
+AC_CHECK_DECLS(_MGRM_STANDALONE, standalone_version="yes", foo=bar, [#include <minigui/common.h>])
+
+if test "x$threads_version" = "xyes"; then
+    CFLAGS="$CFLAGS -D_REENTRANT"
+    APP_LIBS="$APP_LIBS -lpthread -lminigui_ths"
+else
+    if test "x$standalone_version" = "xyes"; then
+        APP_LIBS="$APP_LIBS -lminigui_sa"
+    else
+        APP_LIBS="$APP_LIBS -lminigui_procs"
+    fi
+
+    lib_pthread="yes"
+    AC_CHECK_DECLS(_MGGAL_SHADOW, APP_LIBS="$APP_LIBS -lpthread", lib_pthread="no", [#include <minigui/common.h>])
+    if test "x$lib_pthread" = "xno"; then
+        AC_CHECK_DECLS(_MGGAL_MLSHADOW, APP_LIBS="$APP_LIBS -lpthread", no_pthread="no", [#include <minigui/common.h>])
+    fi
+fi
+
+CFLAGS="$CFLAGS -D__MG3D_LIB__"
+
+AC_CHECK_DECLS(_HAVE_MATH_LIB, APP_LIBS="$APP_LIBS -lm", foo=bar, [#include <minigui/common.h>])
+AC_CHECK_DECLS(_MGIMAGE_PNG, APP_LIBS="$APP_LIBS -lpng", foo=bar, [#include <minigui/common.h>])
+AC_CHECK_DECLS(_MGIMAGE_JPG, APP_LIBS="$APP_LIBS -ljpeg", foo=bar, [#include <minigui/common.h>])
+AC_CHECK_DECLS(_MGFONT_TTF, APP_LIBS="$APP_LIBS -lttf", foo=bar, [#include <minigui/common.h>])
+AC_CHECK_DECLS(_MGFONT_FT2, APP_LIBS="$APP_LIBS -lfreetype", foo=bar, [#include <minigui/common.h>])
+
+AM_CONDITIONAL(MGRM_THREADS, test "x$threads_version" = "xyes")
+AM_CONDITIONAL(MGRM_PROCESSES, test "x$procs_version" = "xyes")
+AM_CONDITIONAL(MGRM_STANDALONE, test "x$standalone_version" = "xyes")
+
+AM_CONFIG_HEADER([mg3dconfig.h])
+
+AC_SUBST(MG3D_SUBDIRS)
+AC_SUBST(MG3D_LADD)
+
+AC_SUBST(APP_LIBS)
+
+dnl AM_CONDITIONAL(ENABLE_MG3D_C, test "x$use_mg3d_c" = "xyes")
+AM_CONDITIONAL(ENABLE_COLOR16, test "x$use_mg_color16" = "xyes")
+AM_CONDITIONAL(ENABLE_COLOR8, test "x$use_mg_color8" = "xyes")
+AM_CONDITIONAL(ENABLE_COLOR24, test "x$use_mg_color24" = "xyes")
+AM_CONDITIONAL(ENABLE_COLOR32, test "x$use_mg_color32" = "xyes")
+
+AC_OUTPUT(
+Makefile
+m4/Makefile
+include/Makefile
+src/Makefile
+src/include/Makefile
+src/c/Makefile
+test/Makefile
+)
+
